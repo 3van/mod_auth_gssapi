@@ -1,0 +1,30 @@
+APXS = @APXS@
+GSS_CPPFLAGS = @GSS_CPPFLAGS@
+GSS_LDFLAGS = @GSS_LDFLAGS@ @LIBS@
+SPNEGO_SRCS = @SPNEGO_SRCS@
+
+CPPFLAGS = -I. -Ispnegokrb5 $(GSS_CPPFLAGS) $(DEFS)
+LDFLAGS = $(GSS_LDFLAGS)
+CFLAGS =
+
+SRCS = mod_auth_gssapi.c gss.c $(SPNEGO_SRCS)
+
+all: mod_auth_gssapi.la
+
+mod_auth_gssapi.la: $(SRCS)
+	./apxs.sh "${CPPFLAGS}" "${LDFLAGS}" "${SRCS}" "${APXS} -c"
+
+install: mod_auth_gssapi.la
+	./apxs.sh "${CPPFLAGS}" "${LDFLAGS}" $^ "${APXS} -i -A -n auth_gssapi"
+
+clean:
+	for i in . spnegokrb5; do \
+		(cd $$i && $(RM) *.o *.so *.a *.la *.lo *.slo); \
+		$(RM) -rf $$i/.libs; \
+	done
+
+distclean: clean
+	$(RM) config.h config.status Makefile config.log
+	$(RM) -rf autom4te.cache
+
+.PHONY: all install clean distclean

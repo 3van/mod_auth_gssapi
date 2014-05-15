@@ -1,0 +1,15 @@
+/* Define to the version of this package. */
+/* Conflicts with defintions from Apache */
+/* #undef PACKAGE_VERSION */
+
+/* Define to `unsigned' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define if your GSSAPI library supports handling SPNEGO tokens */
+#undef GSSAPI_SUPPORTS_SPNEGO
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H

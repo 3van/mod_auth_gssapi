@@ -1,0 +1,16 @@
+D/spnegokrb5////
+D/src////
+D/apache1////
+D/apache2////
+D/client////
+D/krb4////
+D/krb5////
+/.cvsignore/1.1/Tue Nov  4 13:58:43 2003//Tmoonshot_branch
+/LICENSE/1.3.4.2/Thu May 15 18:11:50 2014//Tmoonshot_branch
+/Makefile.in/1.24.2.3/Thu May 15 18:11:50 2014//Tmoonshot_branch
+/apxs.sh/1.2.2.3/Thu May 15 18:11:50 2014//Tmoonshot_branch
+/config.h.in/1.7.2.1/Thu May 15 18:11:50 2014//Tmoonshot_branch
+/configure.in/1.41.2.2/Thu May 15 18:11:50 2014//Tmoonshot_branch
+/gss.c/1.1.2.3/Fri May  6 09:47:25 2011//Tmoonshot_branch
+/mod_auth_gssapi.c/1.1.2.2/Fri May  6 09:47:25 2011//Tmoonshot_branch
+/mod_auth_gssapi.h/1.1.2.2/Fri May  6 09:47:25 2011//Tmoonshot_branch

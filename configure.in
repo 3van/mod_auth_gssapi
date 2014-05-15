@@ -1,0 +1,171 @@
+AC_REVISION($Revision: 1.41.2.2 $)
+AC_PREREQ(2.57)
+AC_INIT(mod_auth_gssapi, 0.1, modauthkerb-developers@lists.sourceforge.net)
+AC_CONFIG_SRCDIR([mod_auth_gssapi.c])
+AC_CONFIG_HEADER([config.h])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_MAKE_SET
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([limits.h netdb.h stddef.h stdlib.h string.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+#AC_C_CONST
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
+
+#
+# GSS-API enviroment
+#
+SPNEGO_SRCS=""
+
+AC_ARG_WITH(gss,
+  AC_HELP_STRING([--with-gss=dir],[use gss in dir]),
+  [ with_gss="$withval" ])
+if test "x$with_gss" = "xyes" ; then
+  with_gss=""
+fi
+
+ac_save_CPPFLAGS="$CPPFLAGS"
+ac_save_LDFLAGS="$LDFLAGS"
+ac_save_LIBS="$LIBS"
+   
+if test -z "$GSS_CPPFLAGS"; then
+   TMP_GSS_CPPFLAGS=""
+   if test -n "with_gss"; then
+      TMP_GSS_CPPFLAGS="-I$with_gss/include"
+   fi
+   CPPFLAGS="$CPPFLAGS $TMP_GSS_CPPFLAGS"
+   AC_CHECK_HEADERS(gssapi.h, 
+                    [ GSS_CPPFLAGS="$TMP_GSS_CPPFLAGS" ])
+   if test -z "$GSS_CPPFLAGS"; then
+      AC_CHECK_HEADERS(gssapi/gssapi.h, 
+                       [ GSS_CPPFLAGS="$TMP_GSS_CPPFLAGS" ])
+   fi
+   CPPFLAGS="$ac_save_CPPFLAGS" 
+fi
+
+#if test "x$with_gss"="x"; then
+#      tmp_lf_inc=""
+#   else
+#      tmp_lf_inc="-L"
+#fi
+if test -z "$GSS_LDFLAGS"; then
+   TMP_GSS_LDFLAGS=""
+   if test -n "$with_gss"; then
+# XXX think about lib64, etc
+      TMP_GSS_LDFLAGS="-L $with_gss/lib"
+   fi
+fi
+LIBS="$LIBS $TMP_GSS_LDFLAGS"
+AC_CHECK_LIB(
+	[gssapi_krb5], gss_accept_sec_context,
+ 	[found_gssapi=yes
+		LIBS="-lgssapi_krb5 $LIBS"],
+	[AC_CHECK_LIB(gssapi, gss_accept_sec_context, [ found_gssapi=yes
+	 	LIBS="$LIBS -lgssapi"],
+		[LIBS="$ac_save_LIBS"])])
+if test -z "$found_gssapi"; then
+   AC_MSG_ERROR([failed to find a GSS-API library])
+fi
+
+# If SPNEGO is supported by the gssapi libraries, we shouln't build our support.
+# SPNEGO is supported as of Heimdal 0.7, and MIT 1.5.
+gssapi_supports_spnego=""
+AC_MSG_CHECKING(whether the GSSAPI libraries support SPNEGO)
+
+ac_save_CFLAGS="$CFLAGS"
+CFLAGS="$GSS_CPPFLAGS"
+
+ac_save_LDFLAGS=$LDFLAGS
+LDFLAGS="$GSS_LDFLAGS"
+# to make sure the testing binary can be launched:
+if test -n "$with_gss"; then
+   LDFLAGS="$LDFLAGS -Wl,-rpath -Wl,$with_gss/lib"
+fi
+     AC_TRY_RUN([
+#include <string.h>
+#include <gssapi.h>
+int main(int argc, char** argv)
+{
+       OM_uint32 major_status, minor_status;
+       gss_OID_set mech_set;
+       gss_OID_desc spnego_oid_desc = {6, (void *)"\x2b\x06\x01\x05\x05\x02"};
+       int SPNEGO = 0;
+                                                                               
+       major_status = gss_indicate_mechs(&minor_status, &mech_set);
+       if (GSS_ERROR(major_status))
+               return 1;
+       else {
+               unsigned int i;
+               for (i=0; i < mech_set->count && !SPNEGO; i++) {
+                       gss_OID tmp_oid = &mech_set->elements[i];
+                      if (tmp_oid->length == spnego_oid_desc.length &&
+                           !memcmp(tmp_oid->elements, spnego_oid_desc.elements, 
+                                   tmp_oid->length)) {
+                               SPNEGO = 1;
+                               break;
+                       }
+               }
+               gss_release_oid_set(&minor_status, &mech_set);
+               return (!SPNEGO);
+       }
+}],
+     [ if test $? -eq 0; then 
+         AC_MSG_RESULT(yes)
+         AC_DEFINE(GSSAPI_SUPPORTS_SPNEGO,1,[GSS-API implementation has its own SPNEGO])
+         gssapi_supports_spnego=yes 
+       else
+         AC_MSG_RESULT(no)
+       fi],
+     [ AC_MSG_RESULT(no)]
+     )
+
+CFLAGS="$ac_save_CFLAGS"
+LDFLAGS="$ac_save_LDFLAGS"
+
+if test -z "$gssapi_supports_spnego"; then
+   SPNEGO_SRCS="\
+		spnegokrb5/asn1_MechType.c         \
+        	spnegokrb5/asn1_MechTypeList.c     \
+        	spnegokrb5/asn1_ContextFlags.c     \
+        	spnegokrb5/asn1_NegTokenInit.c     \
+        	spnegokrb5/asn1_NegTokenTarg.c     \
+        	spnegokrb5/der_get.c               \
+        	spnegokrb5/der_put.c               \
+        	spnegokrb5/der_free.c              \
+        	spnegokrb5/der_length.c            \
+        	spnegokrb5/der_copy.c              \
+        	spnegokrb5/timegm.c                \
+        	spnegokrb5/init_sec_context.c      \
+        	spnegokrb5/accept_sec_context.c    \
+        	spnegokrb5/encapsulate.c           \
+        	spnegokrb5/decapsulate.c           \
+        	spnegokrb5/external.c"
+fi
+AC_SUBST(GSS_CPPFLAGS)
+AC_SUBST(GSS_LDFLAGS)
+AC_SUBST(SPNEGO_SRCS)
+
+#
+# Apache enviroment
+#
+AC_ARG_WITH(apache,
+  AC_HELP_STRING([--with-apache=dir],[use apache in dir]),
+  [ with_apache="$withval" ])
+
+AC_PATH_PROG([APXS], [apxs], [], [$with_apache/bin:$with_apache/sbin:$PATH])
+if test -z "$APXS"; then
+   AC_PATH_PROG([APXS], [apxs2], [], [$with_apache/bin:$with_apache/sbin:$PATH])
+   if test -z "$APXS"; then
+      AC_MSG_ERROR([failed to find apache apxs executable])
+   fi
+fi
+AC_SUBST(APXS)
+
+AC_CONFIG_FILES([Makefile])
+
+AC_OUTPUT
